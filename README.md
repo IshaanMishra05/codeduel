@@ -1,283 +1,149 @@
 # CodeDuel ⚔️
 
-> **Real-time 1v1 competitive coding platform** — two developers, one problem, one winner.
-
-CodeDuel is a full-stack backend built with **Spring Boot 3**, **PostgreSQL**, **JWT authentication**, and **WebSockets (STOMP)**. Players are matched in live coding rooms, submit solutions that run against hidden test cases, and earn or lose Elo rating based on who solves the problem first.
+A real-time **1v1 competitive coding platform** built with Spring Boot. Two players join a room, get the same problem, write code, and the first one to pass all test cases wins. ELO rating updates after every match.
 
 ---
 
-## ✨ Features
+## What it does
 
-| Feature | Details |
+- Players register, log in, and get a JWT token
+- One player creates a room (gets a 6-letter code), shares it with an opponent
+- Both players ready up — match starts automatically
+- Each player writes code in their preferred language (Java / Python / C++)
+- Code is executed server-side against hidden test cases with a time limit
+- First to pass all tests wins — ELO ratings update instantly
+- Results broadcast to both players over WebSocket in real time
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
 |---|---|
-| **Auth** | Register / login with JWT; BCrypt password hashing; role-based access (PLAYER / ADMIN) |
-| **Problems** | Admin CRUD for problems + test cases (visible & hidden); filter by difficulty and language |
-| **Rooms** | 6-character random room codes; join flow; ready-up system; auto-start when both players ready |
-| **Code Execution** | ProcessBuilder sandbox for Java, Python, C++; per-test-case stdin/stdout comparison; 5 s timeout; compile error capture |
-| **Real-time** | STOMP WebSocket events — player joined, ready, submission result, match finished |
-| **ELO Rating** | Standard chess Elo formula; dynamic K-factor (K=40 for new players, K=20 established); Elo floor at 100 |
-| **Leaderboard** | Top N players sorted by Elo; win-rate calculation |
+| Framework | Spring Boot 3.2 |
+| Language | Java 17 |
+| Database | PostgreSQL + JPA/Hibernate |
+| Auth | Spring Security + JWT (JJWT 0.12) |
+| Real-time | WebSockets with STOMP protocol |
+| Code Execution | Java ProcessBuilder (sandboxed subprocess) |
+| Testing | JUnit 5 + Mockito + AssertJ |
+| Build | Maven |
 
 ---
 
-## 🏗 Architecture
+## Project Structure
 
 ```
-Client (React / any)
-   │
-   ├── REST  ──────────►  Spring Boot Controllers
-   │                           │
-   └── WebSocket (STOMP) ─►  MatchWebSocketController
-                               │
-                        ┌──────▼──────────────────┐
-                        │      Service Layer        │
-                        │  AuthService             │
-                        │  ProblemService          │
-                        │  MatchService            │
-                        │  SubmissionService       │  ◄── CodeExecutionService
-                        │  UserService             │
-                        │  EloService              │
-                        └──────────────────────────┘
-                               │
-                        ┌──────▼──────────────────┐
-                        │    JPA / Hibernate        │
-                        │    PostgreSQL             │
-                        └──────────────────────────┘
-```
-
-### WebSocket Event Flow
-
-```
-Client A                 Server                    Client B
-   │                       │                          │
-   │── POST /rooms ────────►│                          │
-   │◄── { roomCode } ───────│                          │
-   │                       │                          │
-   │                       │◄─── POST /rooms/join ────│
-   │◄── PLAYER_JOINED ──────│─── PLAYER_JOINED ───────►│
-   │                       │                          │
-   │── /app/match/{code}/ready ──►│                   │
-   │◄─ PLAYER_READY ────────│──── PLAYER_READY ───────►│
-   │◄─ MATCH_STARTED ───────│──── MATCH_STARTED ──────►│
-   │                       │                          │
-   │── POST /submissions ──►│  (code runs here)        │
-   │◄─ SUBMISSION_RESULT ───│── SUBMISSION_RESULT ────►│
-   │◄─ MATCH_FINISHED ──────│──── MATCH_FINISHED ─────►│
+src/main/java/com/codeduel/
+├── config/          # Security, WebSocket, ModelMapper config
+├── controller/      # REST endpoints (Auth, Problems, Rooms, Submissions, Users)
+├── dto/             # Request and response shapes (separate from entities)
+├── entity/          # JPA entities — User, Problem, TestCase, Match, MatchPlayer, Submission
+├── exception/       # GlobalExceptionHandler + custom exceptions
+├── repository/      # Spring Data JPA interfaces
+├── security/        # JwtService + JwtAuthFilter
+├── service/         # Business logic — Auth, Match, Submission, ELO, CodeExecution
+└── websocket/       # STOMP controller + event publisher
 ```
 
 ---
 
-## 🗂 Project Structure
-
-```
-src/
-├── main/java/com/codeduel/
-│   ├── CodeDuelApplication.java
-│   ├── config/
-│   │   ├── AppConfig.java          # ModelMapper bean
-│   │   ├── SecurityConfig.java     # Spring Security + CORS
-│   │   └── WebSocketConfig.java    # STOMP broker config
-│   ├── controller/
-│   │   ├── AuthController.java     # POST /api/auth/register, /login
-│   │   ├── ProblemController.java  # GET/POST/PUT/DELETE /api/problems
-│   │   ├── RoomController.java     # POST /api/rooms, /join, /{code}/ready
-│   │   ├── SubmissionController.java
-│   │   └── UserController.java     # /api/users/me, /api/leaderboard
-│   ├── dto/
-│   │   ├── request/                # Validated inbound payloads
-│   │   └── response/               # Outbound JSON shapes
-│   ├── entity/                     # JPA entities (User, Problem, Match …)
-│   ├── exception/
-│   │   ├── GlobalExceptionHandler.java
-│   │   ├── BadRequestException.java
-│   │   ├── ConflictException.java
-│   │   └── ResourceNotFoundException.java
-│   ├── repository/                 # Spring Data JPA interfaces
-│   ├── security/
-│   │   ├── JwtService.java         # Token generation + validation
-│   │   └── JwtAuthFilter.java      # OncePerRequestFilter
-│   ├── service/
-│   │   ├── AuthService.java
-│   │   ├── CodeExecutionService.java  # ProcessBuilder sandbox
-│   │   ├── EloService.java
-│   │   ├── MatchService.java
-│   │   ├── ProblemService.java
-│   │   ├── SubmissionService.java
-│   │   └── UserService.java
-│   └── websocket/
-│       ├── MatchEvent.java          # Event payload types
-│       ├── MatchEventPublisher.java # SimpMessagingTemplate wrapper
-│       └── MatchWebSocketController.java
-└── test/java/com/codeduel/service/
-    ├── AuthServiceTest.java
-    ├── EloServiceTest.java
-    └── MatchServiceTest.java
-```
-
----
-
-## 🚀 Getting Started
+## How to Run
 
 ### Prerequisites
-
 - Java 17+
 - Maven 3.9+
 - PostgreSQL 14+
 - `javac`, `python3`, `g++` on PATH (for code execution)
 
-### 1. Database Setup
-
+### 1. Create the database
 ```sql
 CREATE DATABASE codeduel;
 ```
 
-### 2. Configure `application.properties`
-
+### 2. Configure `src/main/resources/application.properties`
 ```properties
 spring.datasource.url=jdbc:postgresql://localhost:5432/codeduel
 spring.datasource.username=postgres
-spring.datasource.password=yourpassword
+spring.datasource.password=YOUR_PASSWORD
 
-app.jwt.secret=<64-char hex string>
-app.jwt.expiration-ms=86400000
+app.jwt.secret=YOUR_64_CHAR_HEX_SECRET
 ```
 
 Generate a secret:
 ```bash
+# Mac/Linux
 openssl rand -hex 32
+
+# Windows PowerShell
+-join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Random -Max 256) })
 ```
 
 ### 3. Run
-
 ```bash
 mvn spring-boot:run
 ```
 
-The API is available at `http://localhost:8080`.
+API is live at `http://localhost:8080`. Hibernate auto-creates all tables on first run.
 
 ### 4. Run Tests
-
 ```bash
 mvn test
 ```
 
 ---
 
-## 📡 REST API Reference
+## API Endpoints
 
-### Auth
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/api/auth/register` | ❌ | Register new player |
-| POST | `/api/auth/login` | ❌ | Login, receive JWT |
-
-**Register body:**
-```json
-{ "username": "alice", "email": "alice@example.com", "password": "secret123" }
-```
-
-**Login response:**
-```json
-{ "token": "eyJ...", "type": "Bearer", "userId": 1, "username": "alice", "role": "PLAYER" }
-```
-
----
+### Auth — no token required
+| Method | Endpoint | Body |
+|---|---|---|
+| POST | `/api/auth/register` | `{ username, email, password }` |
+| POST | `/api/auth/login` | `{ username, password }` → returns `{ token, ... }` |
 
 ### Problems
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | `/api/problems` | ✅ | List all (filter: `?difficulty=EASY&language=java`) |
-| GET | `/api/problems/{id}` | ✅ | Get problem (visible test cases only) |
-| GET | `/api/problems/{id}/admin` | 🔒 ADMIN | Get problem with all test cases |
-| POST | `/api/problems` | 🔒 ADMIN | Create problem + test cases |
-| PUT | `/api/problems/{id}` | 🔒 ADMIN | Update problem |
-| DELETE | `/api/problems/{id}` | 🔒 ADMIN | Delete problem |
-
-**Create body:**
-```json
-{
-  "title": "Two Sum",
-  "description": "Given an array of integers...",
-  "difficulty": "EASY",
-  "language": "java",
-  "starterCode": "class Solution {\n    public int[] twoSum(int[] nums, int target) {\n    }\n}",
-  "testCases": [
-    { "input": "4\n2 7 11 15\n9", "expectedOutput": "0 1", "isHidden": false },
-    { "input": "3\n3 2 4\n6",      "expectedOutput": "1 2", "isHidden": true  }
-  ]
-}
-```
-
----
+| Method | Endpoint | Auth |
+|---|---|---|
+| GET | `/api/problems` | ✅ Player |
+| GET | `/api/problems/{id}` | ✅ Player |
+| POST | `/api/problems` | 🔒 Admin only |
+| PUT | `/api/problems/{id}` | 🔒 Admin only |
+| DELETE | `/api/problems/{id}` | 🔒 Admin only |
 
 ### Rooms
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | `/api/rooms` | ✅ | List open (WAITING) rooms |
-| GET | `/api/rooms/{roomCode}` | ✅ | Get room state |
-| POST | `/api/rooms` | ✅ | Create room |
-| POST | `/api/rooms/join` | ✅ | Join by room code |
-| POST | `/api/rooms/{roomCode}/ready` | ✅ | Mark yourself ready |
-
----
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/rooms` | List open rooms |
+| POST | `/api/rooms` | Create room `{ problemId, timeLimitSeconds }` |
+| POST | `/api/rooms/join` | Join room `{ roomCode }` |
+| POST | `/api/rooms/{code}/ready` | Mark yourself ready |
 
 ### Submissions
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/submissions` | Submit code `{ matchId, code, language }` |
+| GET | `/api/submissions/match/{matchId}` | Your submissions in a match |
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/api/submissions` | ✅ | Submit code for active match |
-| GET | `/api/submissions/match/{matchId}` | ✅ | My submissions in a match |
-
-**Submit body:**
-```json
-{ "matchId": 1, "code": "class Solution { ... }", "language": "java" }
-```
-
-**Submission response:**
-```json
-{
-  "id": 42,
-  "status": "ACCEPTED",
-  "testsPassed": 10,
-  "totalTests": 10,
-  "executionMs": 124,
-  "compilerOutput": null
-}
-```
-
-Possible `status` values: `ACCEPTED`, `WRONG_ANSWER`, `COMPILE_ERROR`, `RUNTIME_ERROR`, `TIME_LIMIT`
+### Users
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/users/me` | Your profile |
+| GET | `/api/leaderboard` | Top players by ELO |
 
 ---
 
-### Users & Leaderboard
+## WebSocket Events
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | `/api/users/me` | ✅ | My profile |
-| GET | `/api/users/{id}` | ✅ | Public profile |
-| GET | `/api/leaderboard` | ❌ | Top players (`?limit=50`) |
+Connect to `ws://localhost:8080/ws/websocket` using STOMP.
 
----
+**Subscribe to:**
+- `/topic/match/{roomCode}` — room events (PLAYER_JOINED, PLAYER_READY, MATCH_STARTED, MATCH_FINISHED)
+- `/topic/match/{roomCode}/progress` — live submission results for both players
 
-## 🔌 WebSocket API
+**Send to:**
+- `/app/match/{roomCode}/ready` — mark yourself ready
 
-Connect to `ws://localhost:8080/ws` (SockJS fallback available).
-
-### Client → Server
-
-Send to `/app/match/{roomCode}/ready` to mark yourself ready.
-
-### Server → Client Subscriptions
-
-| Topic | When |
-|-------|------|
-| `/topic/match/{roomCode}` | PLAYER_JOINED, PLAYER_READY, MATCH_FINISHED |
-| `/topic/match/{roomCode}/progress` | SUBMISSION_RESULT (live, both players see it) |
-
-**MATCH_FINISHED payload:**
+**Example MATCH_FINISHED payload:**
 ```json
 {
   "type": "MATCH_FINISHED",
@@ -287,110 +153,61 @@ Send to `/app/match/{roomCode}/ready` to mark yourself ready.
 }
 ```
 
-**SUBMISSION_RESULT payload:**
-```json
-{
-  "type": "SUBMISSION_RESULT",
-  "submission": {
-    "username": "alice",
-    "status": "WRONG_ANSWER",
-    "testsPassed": 7,
-    "totalTests": 10,
-    "executionMs": 88
-  }
-}
-```
-
 ---
 
-## ⚙️ Code Execution Engine
+## Code Execution Engine
 
-`CodeExecutionService` uses Java `ProcessBuilder` to run submitted code natively.
+Submissions run as native OS subprocesses via `ProcessBuilder`:
 
 | Language | Compile | Run |
-|----------|---------|-----|
+|---|---|---|
 | `java` | `javac Solution.java` | `java -Xmx128m Solution` |
-| `python` | (interpreted) | `python3 Solution.py` |
+| `python` | — | `python3 Solution.py` |
 | `cpp` | `g++ -O2 -o solution solution.cpp` | `./solution` |
 
-**Limits:**
-- Wall clock timeout: 5 000 ms (configurable via `app.execution.timeout-ms`)
-- JVM heap: 128 MB (`-Xmx128m`)
-- Max output lines captured: 1 000
-
-> ⚠️ **Production note:** For a real deployment, wrap each subprocess in Docker or [nsjail](https://github.com/google/nsjail) and run it as an unprivileged OS user. The ProcessBuilder approach is appropriate for a portfolio demo.
+- **Timeout:** 5000ms (configurable via `app.execution.timeout-ms`)
+- **Memory limit:** 128MB JVM heap for Java
+- **Output:** stdout compared against expected output per test case, stderr captured for error messages
 
 ---
 
-## 📐 ELO Rating System
+## ELO Rating System
+
+Standard chess Elo formula with a dynamic K-factor:
 
 ```
-Expected score: E  = 1 / (1 + 10^((opponentRating − playerRating) / 400))
-New rating:     R' = R + K × (actual − expected)
+Expected = 1 / (1 + 10^((opponentRating - playerRating) / 400))
+NewRating = OldRating + K × (1 - Expected)   [winner]
+NewRating = OldRating + K × (0 - Expected)   [loser]
 ```
 
-| Condition | K factor |
-|-----------|---------|
-| < 10 total matches | 40 (new player) |
-| ≥ 10 total matches | 20 (established) |
-
-Elo is floored at **100** to prevent players from going negative.
-
----
-
-## 🛡 Security Model
-
-- All endpoints except `/api/auth/**` and `/api/leaderboard/**` require a valid JWT
-- JWTs are verified on every request via `JwtAuthFilter` (stateless — no sessions)
-- Admin-only mutations use `@PreAuthorize("hasRole('ADMIN')")`
-- Passwords are hashed with BCrypt (strength 10)
-- CORS is configured for `localhost:3000` and `localhost:5173` (Vite / CRA defaults)
-
----
-
-## 🧪 Testing
-
-| Test class | What's covered |
+| Matches Played | K Factor |
 |---|---|
-| `AuthServiceTest` | Register success, duplicate username/email, login flow |
-| `EloServiceTest` | Symmetry, favourites/underdogs, K-factor, boundary values |
-| `MatchServiceTest` | Room creation, joining (full/inactive room), idempotent join, auto-start |
+| Under 10 | 40 (new player, ratings move faster) |
+| 10 or more | 20 (established player) |
 
-Run with:
-```bash
-mvn test
-```
+Minimum rating floor: **100**
 
 ---
 
-## 🗺 Roadmap / Future Improvements
+## To Create Your First Problem (Admin Setup)
 
-- [ ] Docker Compose setup (app + postgres)
-- [ ] Secure execution sandbox (nsjail / Docker-in-Docker)
-- [ ] Match time-limit enforcement via scheduled tasks
-- [ ] Spectator mode (WebSocket subscribe without participating)
-- [ ] Multiple language support per problem
-- [ ] Admin dashboard frontend (React)
-- [ ] GitHub Actions CI pipeline
-
----
-
-## 🛠 Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Framework | Spring Boot 3.2 |
-| Language | Java 17 |
-| Database | PostgreSQL 14 |
-| ORM | Spring Data JPA / Hibernate |
-| Security | Spring Security + JJWT 0.12 |
-| Real-time | Spring WebSocket + STOMP |
-| Mapping | ModelMapper |
-| Build | Maven |
-| Testing | JUnit 5 + Mockito + AssertJ |
+1. Register an account via `POST /api/auth/register`
+2. Manually set your role in the database:
+   ```sql
+   UPDATE users SET role = 'ADMIN' WHERE username = 'your_username';
+   ```
+3. Log in again to get a new token with admin privileges
+4. Use `POST /api/problems` with test cases to create problems
 
 ---
 
-## 👨‍💻 Author
+## Key Design Decisions
 
-Built as a portfolio project demonstrating Spring Boot backend development, real-time systems, and competitive programming infrastructure.
+**Why WebSockets over polling?** Match state (opponent joined, submission result, match finished) needs to appear instantly on both clients simultaneously. Polling would add 1-3s latency and unnecessary server load.
+
+**Why ProcessBuilder over a Judge0 API?** Keeps the execution engine self-contained with no external API dependency or rate limits. The tradeoff is that `javac`, `python3`, and `g++` must be available on the host.
+
+**Why JWT with stateless sessions?** WebSocket connections and REST calls share the same auth mechanism. Stateless JWTs mean no session store is needed, simplifying horizontal scaling.
+
+**Why separate DTOs from entities?** Prevents leaking internal fields (like `password`) in API responses, and decouples the database schema from the API contract.
