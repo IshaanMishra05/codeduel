@@ -32,9 +32,6 @@ build/
 ### VS Code ###
 .vscode/
 
-# Hide sensitive config
-src/main/resources/application.properties
-
 # Standard Java ignores
 *.class
 *.jar
