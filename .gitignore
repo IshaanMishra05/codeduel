@@ -40,3 +40,10 @@ src/main/resources/application.properties
 *.jar
 .idea/
 .DS_Store
+
+node_modules/
+dist/
+
+frontend/
+
+.mvn/
