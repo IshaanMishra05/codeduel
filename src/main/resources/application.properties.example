@@ -1,0 +1,19 @@
+# Copy this to application.properties and fill in your values
+
+# Database
+spring.datasource.url=${DATABASE_URL}
+spring.datasource.username=${DATABASE_USERNAME}
+spring.datasource.password=${DATABASE_PASSWORD}
+
+# JPA
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
+spring.jpa.show-sql=false
+
+# JWT
+app.jwt.secret=${JWT_SECRET}
+app.jwt.expiration-ms=86400000
+
+# App
+spring.application.name=codeduel
+server.port=${PORT:8080}
