@@ -1,9 +1,8 @@
 {
   "build": {
-    "buildCommand": "npm run build",
-    "startCommand": "npx http-server dist -p $PORT -c-1 --gzip"
+    "buildCommand": "./mvnw clean package -DskipTests"
   },
   "deploy": {
-    "root": "frontend"
+    "startCommand": "java -jar target/*.jar"
   }
 }
