@@ -1,8 +1,5 @@
 {
   "build": {
-    "buildCommand": "./mvnw clean package -DskipTests"
-  },
-  "deploy": {
-    "startCommand": "java -jar target/*.jar"
+    "builder": "DOCKERFILE"
   }
 }
