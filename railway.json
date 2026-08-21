@@ -1,0 +1,9 @@
+{
+  "build": {
+    "buildCommand": "npm run build",
+    "startCommand": "npx http-server dist -p $PORT -c-1 --gzip"
+  },
+  "deploy": {
+    "root": "frontend"
+  }
+}
