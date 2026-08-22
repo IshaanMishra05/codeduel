@@ -8,6 +8,7 @@ import { RegisterPage } from './pages/RegisterPage'
 import { HomePage } from './pages/HomePage'
 import { MatchPage } from './pages/MatchPage'
 import { LeaderboardPage } from './pages/LeaderboardPage'
+import { AdminPage } from './pages/AdminPage'
 import './App.css'
 
 function App() {
@@ -50,6 +51,14 @@ function App() {
         element={
           <ProtectedRoute>
             <LeaderboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute>
+            <AdminPage />
           </ProtectedRoute>
         }
       />

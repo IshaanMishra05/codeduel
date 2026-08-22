@@ -13,11 +13,13 @@ export interface AuthResponse {
 }
 
 export interface Problem {
-  id: string
+  id: string | number
   title: string
   description: string
-  difficulty: 'EASY' | 'MEDIUM' | 'HARD'
-  timeLimit: number
+  difficulty: 'EASY' | 'MEDIUM' | 'HARD' | string
+  timeLimit?: number
+  language?: string
+  createdBy?: string
 }
 
 export interface Room {

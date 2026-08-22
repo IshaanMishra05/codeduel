@@ -195,7 +195,15 @@ export function HomePage() {
         </div>
 
         {/* Leaderboard Link */}
-        <div className="mt-8 text-center">
+        <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center items-center">
+          {user?.role === 'ADMIN' && (
+            <button
+              onClick={() => navigate('/admin')}
+              className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition"
+            >
+              Admin Panel
+            </button>
+          )}
           <button
             onClick={() => navigate('/leaderboard')}
             className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg transition"

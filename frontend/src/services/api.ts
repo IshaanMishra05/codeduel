@@ -25,9 +25,10 @@ export const authAPI = {
 
 export const problemsAPI = {
   getAll: () => client.get<Problem[]>('/problems'),
-  getById: (id: string) => client.get<Problem>(`/problems/${id}`),
-  create: (title: string, description: string, difficulty: string, testCases: any) =>
-    client.post('/problems', { title, description, difficulty, testCases }),
+  getById: (id: string | number) => client.get<Problem>(`/problems/${id}`),
+  create: (title: string, description: string, difficulty: string, language: string) =>
+    client.post('/problems', { title, description, difficulty, language }),
+  delete: (id: string | number) => client.delete(`/problems/${id}`),
 }
 
 export const roomsAPI = {
