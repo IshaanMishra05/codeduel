@@ -1,13 +1,13 @@
-import * as StompJs from 'stompjs'
+import { Client } from '@stomp/stompjs'
 
 class WebSocketService {
-  private client: StompJs.Client | null = null
+  private client: Client | null = null
   private listeners: Map<string, Set<(msg: any) => void>> = new Map()
 
   connect(token: string, onConnect?: () => void, onError?: (err: any) => void) {
     const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8080/ws/websocket'
 
-    this.client = new StompJs.Client({
+    this.client = new Client({
       brokerURL: wsUrl,
       connectHeaders: {
         Authorization: `Bearer ${token}`,
@@ -49,7 +49,6 @@ class WebSocketService {
       try {
         const data = JSON.parse(message.body)
         callback(data)
-        // Notify all listeners for this topic
         this.listeners.get(topic)?.forEach((listener) => listener(data))
       } catch (e) {
         console.error('Error parsing message:', e)
@@ -73,6 +72,7 @@ class WebSocketService {
       console.error('WebSocket not connected')
       return
     }
+
     this.client.publish({
       destination,
       body: JSON.stringify(body),
